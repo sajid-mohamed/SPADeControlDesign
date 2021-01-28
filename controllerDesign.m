@@ -39,18 +39,14 @@ for i=1:size(phi,2)
     %     Gamma_aug{i} = [Gamma{i}; 0];
     %     C_augI{i} = [C_aug{i} 0];
     %% check for controllability
-    controllability = ctrb(phi{i},Gamma{i});
-    det(controllability);
-    if det(controllability) == 0
+    [phi_ctr,Gamma_ctr,C_ctr,T,k] = ctrbf(phi{i},Gamma{i},C_aug{i});
+    no_uncontrollable_states = length(phi_ctr)-sum(k);
+    if no_uncontrollable_states > 0
         fprintf('\tScenario s_%d is Uncontrollable and needs decomposition\n',i);
-        clear phi_ctr Gamma_ctr C_ctr T k phi_controlled Gamma_controlled C_controlled K_controlled K_T;
-        [phi_ctr,Gamma_ctr,C_ctr,T,k] = ctrbf(phi{i},Gamma{i},C_aug{i});
-        no_uncontrollable_states = length(phi_ctr)-sum(k);
         phi_controlled = phi_ctr(no_uncontrollable_states+1:n, no_uncontrollable_states+1:n);
         Gamma_controlled = Gamma_ctr(no_uncontrollable_states+1:n);
         C_controlled = C_ctr(no_uncontrollable_states+1:n);
-    %         C_controlled = C_aug(no_uncontrollable_states+1:n+gamma+1);
-    %         Q = [zeros(n+gamma-no_uncontrollable_states, n+gamma-no_uncontrollable_states) zeros(n+gamma-no_uncontrollable_states,1);zeros(1,n+gamma-no_uncontrollable_states)  2];
+    %         Q = [zeros(n - no_uncontrollable_states, n - no_uncontrollable_states) zeros(n-no_uncontrollable_states,1);zeros(1,n-no_uncontrollable_states)  2];
         Q = Q_multiplier*eye(n - no_uncontrollable_states);
         %% Design using dare
         [~,~,G] = dare(phi_controlled, Gamma_controlled, Q,R);
@@ -68,7 +64,8 @@ for i=1:size(phi,2)
         Q = Q_multiplier*[zeros(n, n) zeros(n,1);zeros(1,n)  10^10];
         [~,~,G] = dare(phi{i}, Gamma{i}, Q, R);
         K{i} = -G;
-    end
+    end     
+    clear phi_ctr Gamma_ctr C_ctr T k phi_controlled Gamma_controlled C_controlled K_controlled K_T;
 end
 cqlf_Ai{i}= phi{i} + (Gamma{i}*K{i});
 fprintf('===========================================================\n');

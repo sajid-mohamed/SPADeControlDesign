@@ -1,4 +1,4 @@
-function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,tau,precision)
+function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,tau,tolerance)
 % IMPLEMENTATIONAWAREMATRICES - A function to derive implementation-aware
 %                               state-space matrices for pipelined implementation. 
 %                               The dimensions of all the matrices are made consistent. 
@@ -6,8 +6,8 @@ function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,ta
 %                               A - State matrix in the state-space equation; nf=ceil(tau/h)
 %   Arguments: 
 %       h,tau: arrays of h and tau values for the scenarios
-%       precision: floating point precision since there are comparisons
-%                  with zero. precision=4 for timing values in ms,
+%       tolerance: floating point tolerance since there are comparisons
+%                  with zero. tolerance=4 for timing values in ms,
 %                                      =7  "     "      "    " us & so on.
 %   Returns:
 %       phi, Gamma, C_aug : augmented implementation-aware state-space matrices 
@@ -16,7 +16,7 @@ function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,ta
 %                           tauPrime
 %   Usage:
 %       IMPLEMENTATIONAWAREMATRICES(h,tau)
-%       IMPLEMENTATIONAWAREMATRICES(h,tau,precision)
+%       IMPLEMENTATIONAWAREMATRICES(h,tau,tolerance)
 %
 % Author: Sajid Mohamed
 
@@ -31,7 +31,7 @@ if nargin < 2
     error('Not enough input arguments for simulation. For details - type >>help implementationAwareMatrices');
 end
 if nargin < 3
-    precision=4; %in ms
+    tolerance=4; 
 end
 %% LOAD THE SYSTEM MODEL and initialise
 [Ac,Bc,Cc,Dc]=systemModel();
@@ -49,9 +49,9 @@ end
 %% Compute \tau^{\prime}
 tau_Prime = zeros(1,length(nf));
 for i=1:length(nf)
-    if round(tau(i),precision)>=0
+    if round(tau(i),tolerance)>=0
         tau_Prime(i)=tau(i)-((nf(i)-1)*h);
-    else %% when tau(i) < 0, take care of the precision!
+    else %% when tau(i) < 0, take care of the tolerance!
         error('The delay for any scenario cannot be negative');
     end
 end
@@ -63,9 +63,9 @@ for i=1:length(nf)+1
     clear Gamma0 Gamma1;  
     if i<=length(nf)
         tauSystemScenarios(i)=((nf(i)-1)*h)+tauPrime;
-        if round(tau(i),precision)> 0 %% when tau > 0
+        if round(tau(i),tolerance)> 0 %% when tau > 0
             %% check if tau is an integral multiple of h
-            if round(tauPrime,precision)==round(h,precision)
+            if round(tauPrime,tolerance)==round(h,tolerance)
                 %% tau is an integral multiple of h and \tau^{\prime}==h
                 Gamma0 = [zeros(n,1)];
                 Gamma1 = Bd;        
@@ -82,7 +82,7 @@ for i=1:length(nf)+1
         end  
         phi2=[zeros(nf_wc-1,n) zeros(nf_wc-1,1)    eye(nf_wc-1, nf_wc-1)];
         phi3=[zeros(1,n)        zeros(1,1)           zeros(1,nf_wc-1)];
-        if round(tau(i),precision)<=round(h,precision)     
+        if round(tau(i),tolerance)<=round(h,tolerance)     
             %% augmented system when tau <= h
             fprintf('\tScenario s_%d: for delay tauWorkloadScenario(%d) = %.3f, tauSystemScenario(%d) =%.3f, period: h=%.3f, n_{f_i}=%d --> case: (tau<=h)\n',i,i,tau(i),i,tauSystemScenarios(i),h,nf(i));
             phi{i} = [As_s zeros(n,nf_wc-nf(i)) Gamma1;

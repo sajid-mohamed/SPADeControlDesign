@@ -6,6 +6,7 @@
 %   FD: Inter-Frame Dependence time in s: minimum time between two consecutive start of pipes.
 %   TAU_WORKLOAD_SCENARIOS: Array of tau values for each workload scenario
 %   Q_MULTIPLIER, R: Controller tuning parameters Q and R.
+%   TOLERANCE: tolerance for numerical computations (rounding and comparison, ctrbf)
 % Simulation Parameters:
 %   SIMULATION_TIME: total simulation time in seconds
 %   PATTERN: workload sequence to simulate. Each row is one pattern.
@@ -22,7 +23,7 @@ FD=0;
 TAU_WORKLOAD_SCENARIOS= [25.666 34.316 90.416]/1000;
 Q_MULTIPLIER=1; 
 R=1;
-PRECISION=4;
+TOLERANCE=4;
 %% MATLAB SIMULATION PARAMETERS
 SIMULATION_TIME=1;
 PATTERN={1, ...

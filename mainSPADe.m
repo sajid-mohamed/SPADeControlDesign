@@ -75,7 +75,7 @@ end
 if pipelining==1    
     fprintf('\t\t\tSPADe Pipelined Implementation\n');
     %% Pipelined Controller Design
-    [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,TAU_WORKLOAD_SCENARIOS,PRECISION);
+    [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,TAU_WORKLOAD_SCENARIOS,TOLERANCE);
     [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q_MULTIPLIER,R);
     %% Pipelined Controller Simulation considering workload variations
     simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME);
