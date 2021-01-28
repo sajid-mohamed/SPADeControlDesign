@@ -1,4 +1,5 @@
 % CONFIG - CONFIGURATION PARAMETERS FOR SPADe
+%
 % Design Parameters:
 %   NUM_AVAILABLE_CORES: number of processing cores available n_c^{avl}
 %   NUM_PARALLEL_CORES_PER_PIPE: number of cores for parallelisation per pipe
@@ -6,7 +7,8 @@
 %   FD: Inter-Frame Dependence time in s: minimum time between two consecutive start of pipes.
 %   TAU_WORKLOAD_SCENARIOS: Array of tau values for each workload scenario
 %   Q_MULTIPLIER, R: Controller tuning parameters Q and R.
-%   TOLERANCE: tolerance for numerical computations (rounding and comparison, ctrbf)
+%   TOLERANCE: tolerance for numerical computations in MATLAB (rounding and comparison, ctrbf)
+%
 % Simulation Parameters:
 %   SIMULATION_TIME: total simulation time in seconds
 %   PATTERN: workload sequence to simulate. Each row is one pattern.

@@ -126,8 +126,8 @@ for loop=1:num_plots
       nfPrevScenario=nfScenario;
       nfScenario=simulatePattern{loop}(j);
       systemScenario=timing_pattern{loop}(j); %the system scenario mode to simulate from the pattern. 0 - latest measurement not available
-      if nfScenario==0 %check which mode to simulate
-          if i==1
+      if nfScenario==0 %check which mode to simulate: 0 means tau=0
+          if i==1 %the first simulation step
             u(i)=0;
             uApplied(i)=0;
           else
