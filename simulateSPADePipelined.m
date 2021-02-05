@@ -90,7 +90,7 @@ for loop=1:num_plots
     end
     %simulatePattern --> captures the effective simulation ordering
     %% Start Simulation for each pattern
-    for i=1:nSimulationSteps %i progresses @rate=fh
+    for i=1:nSimulationSteps %i progresses @rate=h
       reference=0;
       if i==1 
           %%initialization of variables        
