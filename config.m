@@ -2,6 +2,7 @@
 %
 % Design Parameters:
 %   NUM_AVAILABLE_CORES: number of processing cores available n_c^{avl}
+%   NUM_PIPES: requested number of pipes
 %   NUM_PARALLEL_CORES_PER_PIPE: number of cores for parallelisation per pipe
 %   FRAME_RATE: Camera frame rate in fps, e.g. 30 fps
 %   FD: Inter-Frame Dependence time in s: minimum time between two consecutive start of pipes.
@@ -17,23 +18,29 @@
 % Author: Sajid Mohamed
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% CHOOSE SYSTEM MODEL
-SYSTEM_MODEL = 4;
-%% DESIGN PARAMETERS
-NUM_AVAILABLE_CORES = 1;
+%% CAMERA FRAME RATE
+FRAME_RATE = 60; %in frame rate per second, e.g. 60 fps
+%% IMPLEMENTATION CHOICE
+NUM_PIPES = 4;
 NUM_PARALLEL_CORES_PER_PIPE = 1;
-FRAME_RATE = 60;
-FD=0;
-TAU_WORKLOAD_SCENARIOS= [100]/1000;
-Q = diag([0 0 0 0 0 10^15]); % SYSTEM_MODEL=4
-% Q=1; % automatically scales it, if you give single digit
+%% APPLICATION MODEL
+SYSTEM_MODEL = 3; % 1: VREP, 2: WEBOTS, 3: LKAS from paper (DEFAULT), 4: Suspension Control System
+%% PLATFORM PARAMETERS
+NUM_AVAILABLE_CORES = 4; 
+%% CONTROL DESIGN PARAMETERS
+% Q = diag([0 0 10^25 0 0]);   % SYSTEM_MODEL=4, LQR
+% Q = diag([0 0 0 0 0 10^15]); % SYSTEM_MODEL=4, LQI
+Q=1; % automatically scales it, if you give single digit
 R=1;
 TOLERANCE=4;
-CONTROLLER=2; %1=LQR, 2=LQI
+CONTROLLER_TYPE=1; %1=LQR, 2=LQI
+%% PARAMETERS FROM SDF3 ANALYSIS
+FD=0;
+TAU_WORKLOAD_SCENARIOS= [84]/1000;
 %% MATLAB SIMULATION PARAMETERS
 SIMULATION_TIME=5;
-% % REFERENCE=[-0.03];
-REFERENCE=0.01; % SYSTEM_MODEL=4
+REFERENCE=[-0.03]; 
+% REFERENCE=[0 0 0.01]; % SYSTEM_MODEL=4
 % PATTERN={1, ...
 %          's_2', ...
 %          's_3', ...

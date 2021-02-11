@@ -44,6 +44,10 @@ clear variables;
 close all;
 format short;
 % help mainSPADe;
+addpath('systemModels');
+addpath('controllerDesign');
+addpath('matlabSimulationFiles');
+
 %% LOAD THE DESIGN CONFIGURATION AND SIMULATION PARAMETERS
 config;
 %% camera and pipelining configuration
@@ -56,36 +60,34 @@ nc_maxPipe = ceil(nf_wc/(ns+1)); %max #cores needed for full pipelining, i.e. fo
 ncParallel = NUM_PARALLEL_CORES_PER_PIPE;
 nc_max     = ncParallel*nc_maxPipe;
 pipelining = 1; %default: true
-%% CHECK THE SCENARIO AND DISPLAY TO THE USER
-%% CASE NO PIPELINING POSSIBLE
+%% CHECK THE SCENARIO, DISPLAY TO THE USER and compute h for pipelined implementation
 if NUM_AVAILABLE_CORES <= 1    
-    pipelining=0;
+    pipelining=0;    
     fprintf('Pipelining is NOT possible. You need atleast two cores for pipelining.\n');
     fprintf('======================================================================\n');
-elseif nc_maxPipe <= 1 %ceil(tau_wc/fh)
+elseif nc_maxPipe <= 1 %max #pipes possible with the current configuration <=1
     pipelining=0;
     fprintf('Pipelining is NOT possible. Worst-case delay, camera frame rate or frame dependencies limit pipelining for this configuration.\n');
     fprintf('==============================================================================================================================\n');
-elseif NUM_AVAILABLE_CORES < nc_max
-    h=ceil(nc_max*(ns+1)/NUM_AVAILABLE_CORES)*fh;
-else
-    h=(ns+1)*fh;    
+elseif NUM_AVAILABLE_CORES < nc_max %max #available cores less than max required cores for full pipelining
+    h_min=ceil(nc_max*(ns+1)/NUM_AVAILABLE_CORES)*fh;
+else %(more than) sufficient number of cores available
+    h_min=(ns+1)*fh;    
 end
-%% SPADe system augmentation
-if pipelining==1    
-    fprintf('\t\t\tSPADe Pipelined Implementation\n');
-    %% Pipelined Controller Design
-    [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,TAU_WORKLOAD_SCENARIOS,SYSTEM_MODEL,TOLERANCE);    
-else
+%% Compute h for non-pipelined implementation
+if pipelining==0 %non-pipelined
     h=ceil(TAU_WORKLOAD_SCENARIOS/fh)*fh;
-    fprintf('\t\t\tSPADe Non-Pipelined Implementation\n');
-    [phi,Gamma,C_aug] = augmentSystem(TAU_WORKLOAD_SCENARIOS,h,SYSTEM_MODEL);
-end
-%% SPADe Controller Design
-if CONTROLLER == 2 %LQI
-   [K,F,cqlf_Ai] = controllerDesignLQI(phi,Gamma,C_aug,Q,R);
 else
-   [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R);
-end
+    h_wc=ceil(tau_wc/(NUM_PIPES*fh))*fh;
+    if h_wc <= h_min %the requested #pipes result in h_wc less than min possible as per the configuration
+        h=h_min; % h is relaxed or delayed to h_min
+    else
+        h=h_wc; % h is adjusted based on the #pipes requested 
+    end
+end    
+%% SPADe implementation-aware modelling
+[phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareSystemModelling(h,TAU_WORKLOAD_SCENARIOS,pipelining,SYSTEM_MODEL,TOLERANCE);    
+%% SPADe Controller Design
+[K,F,cqlf_Ai] = controlDesign(phi,Gamma,C_aug,Q,R,CONTROLLER_TYPE);
 %% SPADe Simulation
-simulateSPADe(pipelining,CONTROLLER,h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,REFERENCE,SYSTEM_MODEL,fh);
+simulateSPADe(pipelining,CONTROLLER_TYPE,h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,REFERENCE,SYSTEM_MODEL,fh);
