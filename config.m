@@ -18,22 +18,22 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% CHOOSE SYSTEM MODEL
-SYSTEM_MODEL = 3;
+SYSTEM_MODEL = 4;
 %% DESIGN PARAMETERS
 NUM_AVAILABLE_CORES = 1;
 NUM_PARALLEL_CORES_PER_PIPE = 1;
 FRAME_RATE = 60;
 FD=0;
-TAU_WORKLOAD_SCENARIOS= [84]/1000;
-% Q = diag([1 1 1 1 1 1 1]);
-Q=1; % automatically scales it, if you give single digit
+TAU_WORKLOAD_SCENARIOS= [100]/1000;
+Q = diag([0 0 0 0 0 10^15]); % SYSTEM_MODEL=4
+% Q=1; % automatically scales it, if you give single digit
 R=1;
 TOLERANCE=4;
-CONTROLLER=1; %1=LQR, 2=LQI
+CONTROLLER=2; %1=LQR, 2=LQI
 %% MATLAB SIMULATION PARAMETERS
 SIMULATION_TIME=5;
-REFERENCE=[-0.03];
-% REFERENCE=0.01;
+% % REFERENCE=[-0.03];
+REFERENCE=0.01; % SYSTEM_MODEL=4
 % PATTERN={1, ...
 %          's_2', ...
 %          's_3', ...
