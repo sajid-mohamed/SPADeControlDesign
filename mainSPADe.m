@@ -60,7 +60,7 @@ nc_maxPipe = ceil(nf_wc/(ns+1)); %max #cores needed for full pipelining, i.e. fo
 ncParallel = NUM_PARALLEL_CORES_PER_PIPE;
 nc_max     = ncParallel*nc_maxPipe;
 pipelining = 1; %default: true
-%% CHECK THE SCENARIO, DISPLAY TO THE USER and compute h for pipelined implementation
+%% CHECK THE SCENARIO, DISPLAY TO THE USER and compute h_min for pipelined implementation
 if NUM_AVAILABLE_CORES <= 1    
     pipelining=0;    
     fprintf('Pipelining is NOT possible. You need atleast two cores for pipelining.\n');
@@ -77,10 +77,10 @@ end
 %% Compute h for non-pipelined implementation
 if pipelining==0 %non-pipelined
     h=ceil(TAU_WORKLOAD_SCENARIOS/fh)*fh;
-else
-    h_wc=ceil(tau_wc/(NUM_PIPES*fh))*fh;
+else %pipelined case
+    h_wc=ceil(tau_wc/(NUM_PIPES*fh))*fh; 
     if h_wc <= h_min %the requested #pipes result in h_wc less than min possible as per the configuration
-        h=h_min; % h is relaxed or delayed to h_min
+        h=h_min; % h is delayed to h_min
     else
         h=h_wc; % h is adjusted based on the #pipes requested 
     end

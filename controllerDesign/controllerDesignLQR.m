@@ -1,5 +1,5 @@
-function [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R)
-% CONTROLLERDESIGN - A function to design LQR controllers using dare() with
+function [K,F,cqlf_Ai] = controllerDesignLQR(phi,Gamma,C_aug,Q,R)
+% CONTROLLERDESIGNLQR - A function to design LQR controllers using dare() with
 %                    controllability decomposition, if uncontrollable.
 %   Arguments:
 %       phi, Gamma, C_aug: Array of (augmented) state-space matrices
@@ -10,10 +10,14 @@ function [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R)
 %       cqlf_Ai: phi+Gamma*K. Used for checking stability of the switched
 %                system
 %   Usage:
-%       CONTROLLERDESIGN(phi,Gamma,C_aug)
-%       CONTROLLERDESIGN(phi,Gamma,C_aug,Q)
-%       CONTROLLERDESIGN(phi,Gamma,C_aug,Q,R)
-%
+%       CONTROLLERDESIGNLQR(phi,Gamma,C_aug)
+%       CONTROLLERDESIGNLQR(phi,Gamma,C_aug,Q)
+%       CONTROLLERDESIGNLQR(phi,Gamma,C_aug,Q,R)
+
+%   Adaptations: 
+%       1) If you would like to hardcode Q in this code to change with n: 
+%                   a. set Q=1 in config.m; 
+%                   b. put your Q in line 50
 % Author: Sajid Mohamed
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -40,7 +44,10 @@ for i=1:size(phi,2)
         Q = Q*eye(n - no_uncontrollable_states);        
     elseif ~isequal(size(Q), [(n - no_uncontrollable_states) (n - no_uncontrollable_states)])
         error("Tuning Matrix Q is of incorrect dimension.\n Q should be a square matrix of order=%d\n Maybe hardcode Q in controllerDesign.m",n - no_uncontrollable_states);
-    end        
+    end
+    %% HARDCODING Q TO CHANGE WITH n
+    % If you would like to hardcode Q: 1. set Q=1 in config.m; 2) uncomment
+    % Q=Q*[zeros(n-1,n-1) zeros(n-1,1);zeros(n-1,1) 10^15]; %AN EXAMPLE
     if no_uncontrollable_states > 0
         fprintf('\tScenario s_%d is Uncontrollable and needs decomposition\n',i);
         phi_controlled = phi_ctr(no_uncontrollable_states+1:n, no_uncontrollable_states+1:n);
