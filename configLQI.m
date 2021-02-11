@@ -17,19 +17,19 @@
 % Author: Sajid Mohamed
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% CHOOSE SYSTEM MODEL
-SYSTEM_MODEL = 3;
 %% DESIGN PARAMETERS
+% NUM_AVAILABLE_CORES = 4;
+% NUM_PARALLEL_CORES_PER_PIPE = 1;
+% FRAME_RATE = 60;
 NUM_AVAILABLE_CORES = 1;
 NUM_PARALLEL_CORES_PER_PIPE = 1;
 FRAME_RATE = 60;
 FD=0;
-TAU_WORKLOAD_SCENARIOS= [84]/1000;
-% Q = diag([1 1 1 1 1 1 1]);
-Q=1; % automatically scales it, if you give single digit
-R=1;
+TAU_WORKLOAD_SCENARIOS= [100]/1000;
+Q_MULTIPLIER=1; 
+R=0.01;
 TOLERANCE=4;
-CONTROLLER=1; %1=LQR, 2=LQI
+CONTROLLER=2; %1=LQR, 2=LQI
 %% MATLAB SIMULATION PARAMETERS
 SIMULATION_TIME=5;
 REFERENCE=[-0.03];

@@ -1,4 +1,4 @@
-function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
+function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelinedLQI(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
 % SIMULATESPADEPIPELINED - A function to simulate the SPADe design in Matlab for pipelined implementation
 % Arguments:
 %       h: the constant sampling period
@@ -109,6 +109,7 @@ for loop=1:num_plots
           x0 = zeros(length(A),1);  %initialise for the state matrix A
           z0 = [x0; zeros(max(nf),1)]; %augmented state matrix
           nfScenario=simulatePattern{loop}(1);
+          e(1) = C_aug{1}*z0- reference(1);
       else
           %%Update timing
           timeY(i) = timeY(i-1) + h;
@@ -133,11 +134,12 @@ for loop=1:num_plots
           systemScenario=length(phi); %currently the length(phi) controller simulates tau=0,h
       else
           firstFrameProcessed=1;
-          u(i) = K{systemScenario}*z0+F{systemScenario}*reference(i);
+          u(i) = K{systemScenario}*[z0;e(i)];
           uApplied(i+nfScenario)=u(i);
       end
       if firstFrameProcessed==1 %Matrices evolve only after the first frame is processed
-          y(i) = C_aug{systemScenario}*z0;
+          y(i) = C_aug{systemScenario}*z0;         
+          e(i+1) = e(i) + y(i) - reference(i);
           z_1 = phi{systemScenario}*z0 + Gamma{systemScenario}*u(i);   
           z0 =z_1;    
       else

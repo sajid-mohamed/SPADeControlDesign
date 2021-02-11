@@ -1,5 +1,7 @@
-function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL)
-% SIMULATESPADENONPIPELINED - A function to simulate the LQR SPADe design in Matlab for non-pipelined implementation
+function [time,time_u,yL,df,MSE,ST] = simulateSPADeLKASNonPipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL)
+% SIMULATESPADENONPIPELINED - A function to simulate the LQR SPADe design
+% in Matlab for non-pipelined implementation. The reference change only
+% changes the initial state disturbance
 % Arguments:
 %       h, tauSystemScenarios: Array of 'h' and 'tau' value for the scenarios
 %       phi, Gamma, C_aug: Array of state-space matrices for the corresponding tauSystemScenarios
@@ -27,8 +29,14 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScena
 % Dependencies: systemModel.m --> loads the state-space matrices
 %               expressionToTimingPattern.m --> converts the pattern for simulation
 %               plotPublication.m --> publication-ready plots
-% Assumptions: 1) Simulation is for LQR controller
+% Assumptions: 1) SISO feedback system where the third state is controlled.
+%                 Reference changes are hardcoded to the third state x0(3) and
+%                 z0(3) in this code.
+%              2) Simulation is for LQR controller
 % Adaptations: 1) To include/remove feedforward gain, change u=Kz <-> u=Kz+Fr
+%              2) To simulate LQI, you need to augment an error state, i.e.
+%                 u=K*[z;e], where e is the error state. During control
+%                 design the state-space matrices need to be augmented as well.
 % 
 % Author: Sajid Mohamed
 
@@ -59,6 +67,7 @@ if length(reference)< nSimulationSteps
     %% resizing the reference variable so that length(reference)=nSimulationSteps
     reference=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
 end
+initialStateDisturbance=reference(1); %HARDCODED to z0(3) in line 81
 %% BEGIN: Iterate for each pattern
 [timing_pattern] = expressionToTimingPattern(pattern,length(tauSystemScenarios));
 num_plots=length(timing_pattern);
@@ -75,13 +84,14 @@ for loop=1:num_plots
           j=1; %to keep track of the length(timing_pattern[])
           x0 = zeros(length(A),1);  %initialise for the state matrix A
           z0 = [x0; 0]; %augmented state matrix; due to implementation-aware matrices additional zeros are not needed
+          z0(3)=initialStateDisturbance;
         end        
       %% simulating LQR controllers with switching
         if i==trackCurrentPeriod
             m=timing_pattern{loop}(j);
             y(timeScenario) = C_aug{m}*z0;  
-            u(timeScenario) = K{m}*z0+F{m}*reference(i);
-            mse_reference(timeScenario)=reference(i);
+            u(timeScenario) = K{m}*z0;
+%             u(timeScenario) = K{m}*z0+F{m}*reference(i);
             z_1 = phi{m}*z0 + Gamma{m}*u(timeScenario);
             z0 = z_1;
             trackCurrentPeriod=trackCurrentPeriod+(h(m)/fh);
@@ -102,13 +112,13 @@ for loop=1:num_plots
     yL{loop}=y;
     time_u{loop}=timeU;
     df{loop}=u;
-    mse_r{loop}=mse_reference;
+    mse_r{loop}=reference(1:length(yL{loop}));
     %% Compute MSE
     MSE(loop)=immse(yL{loop},mse_r{loop});
     %% Compute ST
-    st = stepinfo(yL{loop},time{loop},mse_reference(1),'SettlingTimeThreshold',0.05);
+    st = stepinfo(yL{loop},time{loop},reference(1),'SettlingTimeThreshold',0.05);
     ST(loop) = st.SettlingTime;
-    clear timeY timeU u y mse_reference x0 z0   
+    clear timeY timeU u y x0 z0   
 end
 %%END: iterate for each pattern
 %% Plot results: yL output, df output, MSE, ST

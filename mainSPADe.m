@@ -75,17 +75,25 @@ end
 if pipelining==1    
     fprintf('\t\t\tSPADe Pipelined Implementation\n');
     %% Pipelined Controller Design
-    [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,TAU_WORKLOAD_SCENARIOS,TOLERANCE);
-    [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q_MULTIPLIER,R);
-    %% Pipelined Controller Simulation considering workload variations
-    simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME);
+    [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,TAU_WORKLOAD_SCENARIOS,SYSTEM_MODEL,TOLERANCE);
+    if CONTROLLER == 2 %LQI
+        [K,F,cqlf_Ai] = controllerDesignLQI(phi,Gamma,C_aug,Q,R);
+        simulateSPADePipelinedLQI(h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,fh,REFERENCE,SYSTEM_MODEL); 
+    else
+        [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R);
+        simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,REFERENCE,SYSTEM_MODEL); %% Pipelined Controller Simulation considering workload variations
+    end
 else
     h=ceil(TAU_WORKLOAD_SCENARIOS/fh)*fh;
     fprintf('\t\t\tSPADe Non-Pipelined Implementation\n');
     %% Non-Pipelined Controller Design
-    [phi,Gamma,C_aug] = augmentSystem(TAU_WORKLOAD_SCENARIOS,h);
-    [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q_MULTIPLIER,R);
-    %% Non-Pipelined Controller Simulation
-    simulateSPADeNonPipelined(h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,fh);
+    [phi,Gamma,C_aug] = augmentSystem(TAU_WORKLOAD_SCENARIOS,h,SYSTEM_MODEL);
+    if CONTROLLER == 2 %LQI
+        [K,F,cqlf_Ai] = controllerDesignLQI(phi,Gamma,C_aug,Q,R);
+        simulateSPADeNonPipelinedLQI(h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,fh,REFERENCE,SYSTEM_MODEL); 
+    else
+        [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R);
+        simulateSPADeNonPipelined(h,TAU_WORKLOAD_SCENARIOS,phi,Gamma,C_aug,K,F,PATTERN,SIMULATION_TIME,fh,REFERENCE,SYSTEM_MODEL);
+    end
 end    
 

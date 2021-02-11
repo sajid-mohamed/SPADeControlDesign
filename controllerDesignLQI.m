@@ -1,5 +1,5 @@
-function [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R)
-% CONTROLLERDESIGN - A function to design LQR controllers using dare() with
+function [K,F,cqlf_Ai] = controllerDesignLQI(phi,Gamma,C_aug,Q,R)
+% CONTROLLERDESIGNLQI - A function to design LQI controllers using dare() with
 %                    controllability decomposition, if uncontrollable.
 %   Arguments:
 %       phi, Gamma, C_aug: Array of (augmented) state-space matrices
@@ -10,9 +10,9 @@ function [K,F,cqlf_Ai] = controllerDesign(phi,Gamma,C_aug,Q,R)
 %       cqlf_Ai: phi+Gamma*K. Used for checking stability of the switched
 %                system
 %   Usage:
-%       CONTROLLERDESIGN(phi,Gamma,C_aug)
-%       CONTROLLERDESIGN(phi,Gamma,C_aug,Q)
-%       CONTROLLERDESIGN(phi,Gamma,C_aug,Q,R)
+%       CONTROLLERDESIGNLQI(phi,Gamma,C_aug)
+%       CONTROLLERDESIGNLQI(phi,Gamma,C_aug,Q)
+%       CONTROLLERDESIGNLQI(phi,Gamma,C_aug,Q,R)
 %
 % Author: Sajid Mohamed
 
@@ -28,9 +28,15 @@ if nargin < 5
     R=1; 
 end
 %% Design per scenario
-fprintf('LQR Controller Design for each scenario\n')
-for i=1:size(phi,2)
+fprintf('LQI Controller Design for each scenario\n')
+for i=1:size(phi,2)    
     %% Initialise
+    n0=length(phi{i});
+    %% augmentation for the integral tracking action, if using LQI
+    phi{i} = [phi{i}  zeros(n0,1); 
+                C_aug{i}        1];
+    Gamma{i} = [Gamma{i}; 0];
+    C_aug{i} = [C_aug{i} 0];
     n=length(phi{i});
     %% check for controllability
     [phi_ctr,Gamma_ctr,C_ctr,T,k] = ctrbf(phi{i},Gamma{i},C_aug{i});
@@ -45,16 +51,14 @@ for i=1:size(phi,2)
         fprintf('\tScenario s_%d is Uncontrollable and needs decomposition\n',i);
         phi_controlled = phi_ctr(no_uncontrollable_states+1:n, no_uncontrollable_states+1:n);
         Gamma_controlled = Gamma_ctr(no_uncontrollable_states+1:n);
-        C_controlled = C_ctr(no_uncontrollable_states+1:n);  
+        C_controlled = C_ctr(no_uncontrollable_states+1:n);
         %% Design using dare
-        [~,~,G] = dare(phi_controlled, Gamma_controlled,Q,R);
+        [~,~,G] = dare(phi_controlled, Gamma_controlled, Q,R);
         K_controlled = -G;
-        %% Augmenting uncontrollable states
+        F{i} = 1/(C_controlled*inv(eye(n - no_uncontrollable_states)-(phi_controlled+Gamma_controlled*K_controlled))*Gamma_controlled);
         K_T=[zeros(1,no_uncontrollable_states) K_controlled];
         %% Controller Gain
         K{i} = K_T*T;
-        %% Feedforward Gain
-        F{i} = 1/(C_controlled*inv(eye(n - no_uncontrollable_states)-(phi_controlled+Gamma_controlled*K_controlled))*Gamma_controlled);
     else
         fprintf('\tScenario s_%d is Controllable\n',i); 
         [~,~,G] = dare(phi{i}, Gamma{i}, Q, R);

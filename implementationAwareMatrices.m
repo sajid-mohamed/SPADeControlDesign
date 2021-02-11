@@ -1,4 +1,4 @@
-function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,tau,tolerance)
+function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,tau,SYSTEM_MODEL,tolerance)
 % IMPLEMENTATIONAWAREMATRICES - A function to derive implementation-aware
 %                               state-space matrices for pipelined implementation. 
 %                               The dimensions of all the matrices are made consistent. 
@@ -9,6 +9,8 @@ function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,ta
 %       tolerance: floating point tolerance since there are comparisons
 %                  with zero. tolerance=4 for timing values in ms,
 %                                      =7  "     "      "    " us & so on.
+%       SYSTEM_MODEL: which system model to choose in systemModel.m
+%       
 %   Returns:
 %       phi, Gamma, C_aug : augmented implementation-aware state-space matrices 
 %                           in discrete-time domain.
@@ -17,6 +19,7 @@ function [phi,Gamma,C_aug,tauSystemScenarios] = implementationAwareMatrices(h,ta
 %   Usage:
 %       IMPLEMENTATIONAWAREMATRICES(h,tau)
 %       IMPLEMENTATIONAWAREMATRICES(h,tau,tolerance)
+%       IMPLEMENTATIONAWAREMATRICES(h,tau,SYSTEM_MODEL,tolerance)
 %
 % Author: Sajid Mohamed
 
@@ -31,10 +34,13 @@ if nargin < 2
     error('Not enough input arguments for simulation. For details - type >>help implementationAwareMatrices');
 end
 if nargin < 3
+    SYSTEM_MODEL = 3;
+end
+if nargin < 4
     tolerance=4; 
 end
 %% LOAD THE SYSTEM MODEL and initialise
-[Ac,Bc,Cc,Dc]=systemModel();
+[Ac,Bc,Cc,Dc]=systemModel(SYSTEM_MODEL);
 sysc = ss(Ac,Bc,Cc,Dc);
 n=length(Ac);
 nf=max(ceil(tau/h),1);

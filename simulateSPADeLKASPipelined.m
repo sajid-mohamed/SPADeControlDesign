@@ -1,5 +1,7 @@
-function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
-% SIMULATESPADEPIPELINED - A function to simulate the SPADe design in Matlab for pipelined implementation
+function [time,time_u,yL,df,MSE,ST] = simulateSPADeLKASPipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
+% SIMULATESPADEPIPELINED - A function to simulate the SPADe LKAS design in
+% Matlab for pipelined implementation. Here the disturbance is hardcoded to
+% the third state initially and square waves are not considered.
 % Arguments:
 %       h: the constant sampling period
 %       tauSystemScenarios: Array of tau value for the scenarios
@@ -25,7 +27,10 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenario
 %               expressionToTimingPattern.m --> converts the pattern for simulation
 %               plotPublication.m --> publication-ready plots
 % Assumptions: 1) Constant sampling period h
-%              2) Simulation is for LQR controller
+%              2) SISO feedback system where the third state is controlled.
+%                 Reference changes are hardcoded to the third state x0(3) and
+%                 z0(3) in this code.
+%              3) Simulation is for LQR controller
 % Adaptations: 1) To include/remove feedforward gain, change u=Kz <-> u=Kz+Fr
 %              2) To simulate LQI, you need to augment an error state, i.e.
 %                 u=K*[z;e], where e is the error state. During control
@@ -58,6 +63,7 @@ if length(reference)< nSimulationSteps
     %% resizing the reference variable so that length(reference)=nSimulationSteps
     reference=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
 end
+initialStateDisturbance=reference(1); %HARDCODED to z0(3) in line 81
 tauPrime=tauSystemScenarios(1)-((nf(1)-1)*h);
 %% BEGIN: Iterate for each pattern
 [timing_pattern] = expressionToTimingPattern(pattern,length(tauSystemScenarios));
@@ -108,6 +114,7 @@ for loop=1:num_plots
           j=1; %to keep track of the length(timing_pattern[])
           x0 = zeros(length(A),1);  %initialise for the state matrix A
           z0 = [x0; zeros(max(nf),1)]; %augmented state matrix
+          z0(3)=initialStateDisturbance;
           nfScenario=simulatePattern{loop}(1);
       else
           %%Update timing
@@ -133,7 +140,7 @@ for loop=1:num_plots
           systemScenario=length(phi); %currently the length(phi) controller simulates tau=0,h
       else
           firstFrameProcessed=1;
-          u(i) = K{systemScenario}*z0+F{systemScenario}*reference(i);
+          u(i) = K{systemScenario}*z0;%+F{systemScenario}*reference(i); 
           uApplied(i+nfScenario)=u(i);
       end
       if firstFrameProcessed==1 %Matrices evolve only after the first frame is processed
