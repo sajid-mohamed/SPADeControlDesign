@@ -1,4 +1,4 @@
-function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
+function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL,CONTROLLER_TYPE,FEEDFORWARD,REFERENCE_STATE)
 % SIMULATESPADEPIPELINED - A function to simulate the SPADe design in Matlab for pipelined implementation
 % Arguments:
 %       h: the constant sampling period
@@ -9,6 +9,11 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenario
 %       SIMULATION_TIME: The total simulation time (to plot) in seconds
 %       reference: reference value in array form or a single value
 %       SYSTEM_MODEL: which system model to choose in systemModel.m
+%       CONTROLLER_TYPE: currently supports 1: LQR (DEFAULT) and 2: LQI
+%       FEEDFORWARD: 1: simulate with feedforward gain (DEFAULT) and 0: simulate without feedforward gain
+%       REFERENCE_STATE: 0: reference change is through typical reference (DEFAULT) 
+%                        1-length(A): reference changes the state value of
+%                        the system model A
 % Returns:
 %       time, time_u: Arrays that store the x-axis time values for output y
 %                     and input u respectively.
@@ -20,7 +25,9 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADePipelined(h,tauSystemScenario
 %       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,pattern)
 %       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern)
 %       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME) 
-%       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,SYSTEM_MODEL)
+%       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference)
+%       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL)
+%       SIMULATESPADEPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,reference,SYSTEM_MODEL,CONTROLLER_TYPE)
 % Dependencies: systemModel.m --> loads the state-space matrices
 %               expressionToTimingPattern.m --> converts the pattern for simulation
 %               plotPublication.m --> publication-ready plots
@@ -50,13 +57,33 @@ end
 if nargin < 11
     SYSTEM_MODEL=3;
 end
+if nargin < 12
+    CONTROLLER_TYPE=1;
+end
+if nargin < 13
+    FEEDFORWARD=0;
+end
+if nargin < 14
+    REFERENCE_STATE=3;
+end
 %% LOAD THE SYSTEM MODEL
 [A,~,~,~]=systemModel(SYSTEM_MODEL);
 nf=max(ceil(tauSystemScenarios/h),1);
 nSimulationSteps=ceil(SIMULATION_TIME/h);
-if length(reference)< nSimulationSteps
-    %% resizing the reference variable so that length(reference)=nSimulationSteps
-    reference=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
+if (REFERENCE_STATE > size(A,1))
+    error("Undefined System State %d.\n REFERENCE_STATE can take only take values from 1 to %d\n",REFERENCE_STATE,length(A));
+elseif (REFERENCE_STATE~=0) && (FEEDFORWARD == 1)
+    error("REFERENCE_STATE should be equal to 0 when FEEDFORWARD is 1.\n");
+else
+end
+%% resizing the reference variable so that length(reference)=nSimulationSteps
+if REFERENCE_STATE > 0
+    reference_resized=zeros(1,nSimulationSteps);
+else
+    reference_resized=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
+end
+if length(reference)< 3
+    reference=[reference zeros(1,3-length(reference))];
 end
 tauPrime=tauSystemScenarios(1)-((nf(1)-1)*h);
 %% BEGIN: Iterate for each pattern
@@ -71,7 +98,7 @@ for loop=1:num_plots
     timeU=zeros(1,nSimulationSteps);
     u=zeros(1,nSimulationSteps);
     uApplied=zeros(1,nSimulationSteps+max(nf));
-    fprintf('Simulating Pattern %d\n',loop);
+    fprintf('Simulating Pipelined Implementation: Pattern %d\n',loop);
     %% Find the effective simulation ordering for the input workload pattern
     % Here, we are looking ahead since we need to compute z0 similarly. 
     % In actual implementation, we will be looking back when control computation task is called.
@@ -109,6 +136,7 @@ for loop=1:num_plots
           x0 = zeros(length(A),1);  %initialise for the state matrix A
           z0 = [x0; zeros(max(nf),1)]; %augmented state matrix
           nfScenario=simulatePattern{loop}(1);
+          e(1) = C_aug{1}*z0- reference(1);
       else
           %%Update timing
           timeY(i) = timeY(i-1) + h;
@@ -118,6 +146,18 @@ for loop=1:num_plots
               timeU(i) = timeU(i-1) + h; 
           end
       end
+        %% Square reference for LKAS; HARDCODED TIME STEPS
+        if (REFERENCE_STATE>0) %% Square reference for LKAS; HARDCODED TIME STEPS
+            if (SYSTEM_MODEL==1) || (SYSTEM_MODEL==2) || (SYSTEM_MODEL == 3) %THIS IS SO FOR LKAS
+                if i==1 %HARDCODED TIME STEP = 0
+                    z0(REFERENCE_STATE)=reference(1);
+                elseif i==ceil(2/h) %HARDCODED TIME STEP = 2 seconds
+                    z0(REFERENCE_STATE)=reference(2); %value changed at 2 seconds
+                elseif i==ceil(4/h) %HARDCODED TIME STEP = 4 seconds
+                    z0(REFERENCE_STATE)=reference(3); % the value changed at 4 seconds
+                end 
+            end
+        end
       %%System scenario @timestep i
       nfPrevScenario=nfScenario;
       nfScenario=simulatePattern{loop}(j);
@@ -133,13 +173,24 @@ for loop=1:num_plots
           systemScenario=length(phi); %currently the length(phi) controller simulates tau=0,h
       else
           firstFrameProcessed=1;
-          u(i) = K{systemScenario}*z0+F{systemScenario}*reference(i);
+          if CONTROLLER_TYPE==2 %LQI
+              u(i) = K{systemScenario}*[z0;e(i)];
+          else %LQR
+              if FEEDFORWARD == 1
+                  u(i) = K{systemScenario}*z0+F{systemScenario}*reference_resized(i);
+              else
+                  u(i) = K{systemScenario}*z0;
+              end
+          end
           uApplied(i+nfScenario)=u(i);
       end
       if firstFrameProcessed==1 %Matrices evolve only after the first frame is processed
           y(i) = C_aug{systemScenario}*z0;
           z_1 = phi{systemScenario}*z0 + Gamma{systemScenario}*u(i);   
           z0 =z_1;    
+          if CONTROLLER_TYPE==2         
+            e(i+1) = e(i) + y(i) - reference_resized(i);
+          end
       else
           y(i)=C_aug{systemScenario}*z0;
           uApplied(i)=0;
@@ -158,7 +209,7 @@ for loop=1:num_plots
     time_u{loop}=timeU;
     dfCompute{loop}=u;
     df{loop}=uApplied;
-    mse_r{loop}=reference(1:length(yL{loop}));
+    mse_r{loop}=reference_resized(1:length(yL{loop}));
     %% Compute MSE
     MSE(loop)=immse(yL{loop},mse_r{loop});
     %% Compute ST
@@ -167,34 +218,4 @@ for loop=1:num_plots
     clear timeY timeU timeUApplied u uApplied y x0 z0   
 end
 %%END: iterate for each pattern
-%% Plot results: yL output, df output, MSE, ST
-%BEGIN:ADD ^\omega to pattern for legends in the fig
-for i=1:length(pattern)
-    if isa(pattern{i},'char')
-        pattern{i}=sprintf('(%s)^{\\omega}',pattern{i});
-    else
-        pattern{i}=sprintf('[%s]^{\\omega}',num2str(pattern{i}));
-    end
-end
-%END:ADD ^\omega
-%% plot time vs yL
-s = rng; %random seed to have same colours for both the plots. E.g. rng(1,'twister');
-plotPublication(pattern,time,yL,'time (s)', 'yL (m)', 'yL',s); 
-%% plot time vs df
-% rng(s); %setting the same random seed to have same colours for the second plot
-% plotPublication(pattern,time_u,dfCompute,'time (s)', '\delta_f (radians)', '\delta_f',s); 
-%% plot time vs dfApplied
-rng(s); %setting the same random seed to have same colours for the second plot
-plotPublication(pattern,time_u,df,'time (s)', '\delta_f (radians)', '\delta_f',s);
-%% plot MSE
-figure('name', 'Mean Square Error')    
-bar(MSE);
-set(gca,'xticklabel',pattern);
-%% plot ST
-figure('name', 'Settling Time');    
-bar(ST);
-set(gca,'xticklabel',pattern);
-%% Save the workspace
-%save('plot.mat','time','yL','df');
-fprintf('=====================\n');
-
+plotSPADe(pattern,time,time_u,yL,df,MSE,ST);

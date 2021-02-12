@@ -5,7 +5,7 @@
 %% Parameters
 velocityCar = 50; %in kmph
 %% model parameter setting (WEBOTS)
-vx = (velocityCar)*5/18 %longitudinal velocity(m/s) (20 km/hr = 5.55556)
+vx = (velocityCar)*5/18; %longitudinal velocity(m/s) (20 km/hr = 5.55556)
 LL = 5.5;  %look ahead distance(m) [less than 1s*Vx]
 
 m = 2000; %mass of car(kg)

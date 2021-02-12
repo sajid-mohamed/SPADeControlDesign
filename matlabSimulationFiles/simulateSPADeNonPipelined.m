@@ -1,4 +1,4 @@
-function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL)
+function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL,CONTROLLER_TYPE,FEEDFORWARD,REFERENCE_STATE)
 % SIMULATESPADENONPIPELINED - A function to simulate the LQR SPADe design in Matlab for non-pipelined implementation
 % Arguments:
 %       h, tauSystemScenarios: Array of 'h' and 'tau' value for the scenarios
@@ -9,6 +9,11 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScena
 %       fh: fh=1/FRAME_RATE, where FRAME_RATE is the camera frame rate
 %       reference: reference value in array form or a single value
 %       SYSTEM_MODEL: which system model to choose in systemModel.m
+%       CONTROLLER_TYPE: currently supports 1: LQR (DEFAULT) and 2: LQI
+%       FEEDFORWARD: 1: simulate with feedforward gain (DEFAULT) and 0: simulate without feedforward gain
+%       REFERENCE_STATE: 0: reference change is through typical reference (DEFAULT) 
+%                        1-length(A): reference changes the state value of
+%                        the system model A
 % Returns:
 %       time, time_u: Arrays that store the x-axis time values for output y
 %                     and input u respectively.
@@ -24,6 +29,7 @@ function [time,time_u,yL,df,MSE,ST] = simulateSPADeNonPipelined(h,tauSystemScena
 %       SIMULATESPADENONPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh);
 %       SIMULATESPADENONPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference);
 %       SIMULATESPADENONPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL);
+%       SIMULATESPADENONPIPELINED(h,tauSystemScenarios,phi,Gamma,C_aug,K,F,pattern,SIMULATION_TIME,fh,reference,SYSTEM_MODEL,CONTROLLER_TYPE)
 % Dependencies: systemModel.m --> loads the state-space matrices
 %               expressionToTimingPattern.m --> converts the pattern for simulation
 %               plotPublication.m --> publication-ready plots
@@ -52,12 +58,32 @@ end
 if nargin < 12
     SYSTEM_MODEL=3;
 end
+if nargin < 13
+    CONTROLLER_TYPE=1;
+end
+if nargin < 14
+    FEEDFORWARD=0;
+end
+if nargin < 15
+    REFERENCE_STATE=3;
+end
 %% LOAD THE SYSTEM MODEL
 [A,~,~,~]=systemModel(SYSTEM_MODEL);
 nSimulationSteps=ceil(SIMULATION_TIME/fh);
-if length(reference)< nSimulationSteps
-    %% resizing the reference variable so that length(reference)=nSimulationSteps
-    reference=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
+if (REFERENCE_STATE > size(A,1))
+    error("Undefined System State %d.\n REFERENCE_STATE can take only take values from 1 to %d\n",REFERENCE_STATE,length(A));
+elseif (REFERENCE_STATE~=0) && (FEEDFORWARD == 1)
+    error("REFERENCE_STATE should be equal to 0 when FEEDFORWARD is 1.\n");
+else
+end
+%% resizing the reference variable so that length(reference)=nSimulationSteps
+if REFERENCE_STATE > 0
+    reference_resized=zeros(1,nSimulationSteps);
+else
+    reference_resized=[reference reference(length(reference))*ones(1,nSimulationSteps-length(reference))];
+end
+if length(reference)< 3
+    reference=[reference zeros(1,3-length(reference))];
 end
 %% BEGIN: Iterate for each pattern
 [timing_pattern] = expressionToTimingPattern(pattern,length(tauSystemScenarios));
@@ -75,27 +101,49 @@ for loop=1:num_plots
           j=1; %to keep track of the length(timing_pattern[])
           x0 = zeros(length(A),1);  %initialise for the state matrix A
           z0 = [x0; 0]; %augmented state matrix; due to implementation-aware matrices additional zeros are not needed
-        end        
+          e(1) = C_aug{1}*z0- reference(1);
+        end
+        %% Square reference for LKAS; HARDCODED TIME STEPS
+        if (REFERENCE_STATE>0) %% Square reference for LKAS; HARDCODED TIME STEPS
+            if (SYSTEM_MODEL==1) || (SYSTEM_MODEL==2) || (SYSTEM_MODEL == 3) %THIS IS SO FOR LKAS
+                if i==1 %HARDCODED TIME STEP = 0
+                    z0(REFERENCE_STATE)=reference(1);
+                elseif i==ceil(2/fh) %HARDCODED TIME STEP = 2 seconds
+                    z0(REFERENCE_STATE)=reference(2); %value changed at 2 seconds
+                elseif i==ceil(4/fh) %HARDCODED TIME STEP = 4 seconds
+                    z0(REFERENCE_STATE)=reference(3); % the value changed at 4 seconds
+                end 
+            end
+        end
       %% simulating LQR controllers with switching
         if i==trackCurrentPeriod
             m=timing_pattern{loop}(j);
+            mse_reference(timeScenario)=reference_resized(i);
             y(timeScenario) = C_aug{m}*z0;  
-            u(timeScenario) = K{m}*z0+F{m}*reference(i);
-            mse_reference(timeScenario)=reference(i);
+            if CONTROLLER_TYPE==2 %LQI          
+                e(timeScenario+1) = e(timeScenario) + y(timeScenario) - mse_reference(timeScenario);
+                u(timeScenario) = K{m}*[z0;e(timeScenario)];
+            else %LQR
+                if FEEDFORWARD==1
+                    u(timeScenario) = K{m}*z0+F{m}*mse_reference(timeScenario);
+                else
+                    u(timeScenario) = K{m}*z0;
+                end
+            end
             z_1 = phi{m}*z0 + Gamma{m}*u(timeScenario);
             z0 = z_1;
             trackCurrentPeriod=trackCurrentPeriod+(h(m)/fh);
-            if i>1
+            if i>1 %update simulation times
                 timeY(timeScenario) = timeY(timeScenario-1) + h(m);
                 timeU(timeScenario) = timeY(timeScenario-1) + tauSystemScenarios(m); 
             end
             timeScenario=timeScenario+1;  
-            if j==length(timing_pattern{loop})
+            if j==length(timing_pattern{loop}) %update pattern sequence
                 j=1;
             else
                 j=j+1;
             end
-        end
+        end %i==trackCurrentPeriod
     end 
     %% Storing values needed for plotting
     time{loop}=timeY;
@@ -111,31 +159,6 @@ for loop=1:num_plots
     clear timeY timeU u y mse_reference x0 z0   
 end
 %%END: iterate for each pattern
-%% Plot results: yL output, df output, MSE, ST
-%BEGIN:ADD ^\omega to pattern for legends in the fig
-for i=1:length(pattern)
-    if isa(pattern{i},'char')
-        pattern{i}=sprintf('(%s)^{\\omega}',pattern{i});
-    else
-        pattern{i}=sprintf('[%s]^{\\omega}',num2str(pattern{i}));
-    end
-end
-%END:ADD ^\omega
-%% plot time vs yL
-s = rng; %random seed to have same colours for both the plots. E.g. rng(1,'twister');
-plotPublication(pattern,time,yL,'time (s)', 'yL (m)', 'yL',s); 
-%% plot time vs df
-rng(s); %setting the same random seed to have same colours for the second plot
-plotPublication(pattern,time_u,df,'time (s)', '\delta_f (radians)', '\delta_f',s); 
-%% plot MSE
-figure('name', 'Mean Square Error')    
-bar(MSE);
-set(gca,'xticklabel',pattern);
-%% plot ST
-figure('name', 'Settling Time');    
-bar(ST);
-set(gca,'xticklabel',pattern);
-%% Save the workspace
-%save('plot.mat','time','yL','df');
-fprintf('===================================================\n');
+plotSPADe(pattern,time,time_u,yL,df,MSE,ST);
+
 

@@ -21,29 +21,31 @@
 %% CAMERA FRAME RATE
 FRAME_RATE = 60; %in frame rate per second, e.g. 60 fps
 %% IMPLEMENTATION CHOICE
-NUM_PIPES = 1;
+NUM_PIPES = 4;
 NUM_PARALLEL_CORES_PER_PIPE = 1;
 %% APPLICATION MODEL
 SYSTEM_MODEL = 4; % 1: VREP, 2: WEBOTS, 3: LKAS from paper (DEFAULT), 4: Suspension Control System
 %% PLATFORM PARAMETERS
 NUM_AVAILABLE_CORES = 4; 
 %% CONTROL DESIGN PARAMETERS
-% Q = diag([0 0 10^25 0 0]);   % SYSTEM_MODEL=4, LQR
+Q = diag([0 0 10^25 0 0 0 0]);   % SYSTEM_MODEL=4, LQR
 % Q = diag([0 0 0 0 0 10^15]); % SYSTEM_MODEL=4, LQI
-Q=1; % automatically scales it, if you give single digit
+% Q=1; % automatically scales it, if you give single digit
 R=1;
 TOLERANCE=4;
-CONTROLLER_TYPE=2; %1=LQR, 2=LQI
+CONTROLLER_TYPE=1; %1=LQR, 2=LQI
 %% PARAMETERS FROM SDF3 ANALYSIS
 FD=0; %in seconds
-TAU_WORKLOAD_SCENARIOS= [84 52]/1000; %in seconds
+TAU_WORKLOAD_SCENARIOS= [84 52 12]/1000; %in seconds
 %% MATLAB SIMULATION PARAMETERS
-SIMULATION_TIME=5; %in seconds
-REFERENCE=[-0.03]; %in units of SYSTEM_MODEL
-% REFERENCE=[0 0 0.01]; % SYSTEM_MODEL=4
-% PATTERN={1, ...
-%          's_2', ...
-%          's_3', ...
-%          's_2^{6} s_3^{6} s_1^{12}'
-%          };
-PATTERN={1};
+SIMULATION_TIME=2; %in seconds
+% REFERENCE=[-0.03]; %in units of SYSTEM_MODEL
+% REFERENCE=[-0.03 0.03 -0.03]; % 3 values for square response in LKAS at interval of 2 and 4 seconds: HARDCODED
+REFERENCE=[0 0 0.01]; % SYSTEM_MODEL=4
+PATTERN={1, ...
+         's_2', ...
+         's_3', ...
+         's_2^{6} s_3^{6} s_1^{12}'
+         };
+% PATTERN={1};
+FEEDFORWARD=1;
