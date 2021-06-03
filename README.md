@@ -8,6 +8,14 @@ The SPADe MATLAB Backend provides the codes for generating LQR and LQI controlle
 
 ------------------------------------------------------------------
 
+## How to use SPADeControlDesign?
+
+`config.m` - Define the design parameters for SPADe.
+
+`mainSPADe.m` - run this file in MATLAB to design the controller with parameters defined in `config.m`
+
+The files are commented for better understanding.
+
 ## Relevant Publications
 
 [1] S. Mohamed, D. Goswami, V. Nathan, R. Rajappa, and T. Basten, "A scenario-and platform-aware design flow for image-based control systems," In Microprocessors and Microsystems (MICPRO), 2020.
@@ -20,7 +28,7 @@ The SPADe MATLAB Backend provides the codes for generating LQR and LQI controlle
 
 ------------------------------------------------------------------
 
-## AUTHOR CONTACT INFORMATION
+## Contact
 
 - Sajid Mohamed (sajid.m.eee@gmail.com)
 - Dip Goswami (D.Goswami@tue.nl)
